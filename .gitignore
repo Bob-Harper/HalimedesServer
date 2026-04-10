@@ -1,0 +1,35 @@
+# --- ENVIRONMENT & SECRETS ---
+.env
+*.env
+!example.env
+
+# --- PYTHON ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+*.egg
+
+# --- VIRTUAL ENVIRONMENTS ---
+venv/
+.venv/
+
+# --- EDITOR / IDE ---
+Halimedes.code-workspace
+.vscode/
+.idea/
+
+# --- LOGGING ---
+logging/*.log
+
+# --- TESTING ---
+testing/
+
+# --- SERVERS / MODELS / HEAVY ASSETS ---
+servers/vosk-server/
+
+# --- OS / MISC ---
+.DS_Store
+Thumbs.db

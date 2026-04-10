@@ -1,0 +1,5 @@
+python-dotenv
+llama-cpp-python
+vosk
+psycopg2-binary
+websockets
