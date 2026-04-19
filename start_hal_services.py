@@ -8,6 +8,7 @@ import socket
 import time
 import signal
 import psycopg2
+import aiohttp
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -32,24 +33,22 @@ os.makedirs(LOG_DIR, exist_ok=True)
 # Process Management
 # -------------------------
 
-async def wait_for_websocket(host, port, timeout=60):
-    url = f"ws://{host}:{port}"
+def wait_for_port(host, port, timeout=60):
     start = time.time()
-
-    async def try_connect():
-        try:
-            async with websockets.connect(url):
-                return True
-        except Exception:
-            return False
-
+    print(f"[Launcher] wait_for_port: host={host} port={port} timeout={timeout}")
     while True:
-        if await try_connect():
-            return True
+        try:
+            with socket.create_connection((host, port), timeout=5):
+                print(f"[Launcher] Port {host}:{port} is open.")
+                return True
+        except OSError as e:
+            print(f"[Launcher] Port {host}:{port} not ready yet: {e!r}")
 
-        await asyncio.sleep(0.5)
         if time.time() - start > timeout:
-            raise TimeoutError(f"WebSocket on {url} did not start in time.")
+            raise TimeoutError(f"Port {host}:{port} did not open in time.")
+
+        time.sleep(0.2)
+
 
 def start_process(name, script_path, log_name):
     log_path = os.path.join(LOG_DIR, log_name)
@@ -120,7 +119,8 @@ async def launch_all_services():
         "vosk.log"
     )
     processes.append((vosk_proc, vosk_log))
-    await wait_for_websocket(
+    await asyncio.to_thread(
+        wait_for_port,
         os.getenv("VOSK_CONNECT_HOST", "127.0.0.1"),
         int(os.getenv("VOSK_CONNECT_PORT", 2700))
     )
@@ -133,7 +133,8 @@ async def launch_all_services():
         "llm.log"
     )
     processes.append((llm_proc, llm_log))
-    await wait_for_websocket(
+    await asyncio.to_thread(
+        wait_for_port,
         os.getenv("LLM_CONNECT_HOST", "127.0.0.1"),
         int(os.getenv("LLM_CONNECT_PORT", 8765))
     )
@@ -146,7 +147,8 @@ async def launch_all_services():
         "gateway.log"
     )
     processes.append((gateway_proc, gateway_log))
-    await wait_for_websocket(
+    await asyncio.to_thread(
+        wait_for_port,
         os.getenv("GATEWAY_CONNECT_HOST", "127.0.0.1"),
         int(os.getenv("GATEWAY_CONNECT_PORT", 9000))
     )

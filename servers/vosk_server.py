@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import json
 import os
 import sys
@@ -107,6 +106,10 @@ async def recognize(websocket):
 
         # Process audio chunk in thread pool
         response, stop = await loop.run_in_executor(pool, process_chunk, rec, message)
+
+        logging.info(f"[VoskServer] Received {len(message)} bytes")
+        logging.info(f"[VoskServer] Sending: {response[:200]}")
+
         await websocket.send(response)
 
         if stop:
