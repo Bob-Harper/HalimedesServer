@@ -76,15 +76,30 @@ def stop_processes(processes):
 
     for proc, log in processes:
         try:
-            if os.name == "nt":
-                proc.send_signal(signal.CTRL_BREAK_EVENT)
-            else:
+            # First try graceful
+            if proc.poll() is None:
                 proc.terminate()
         except Exception:
             pass
-        log.close()
+
+    # Give them a moment
+    time.sleep(1)
+
+    for proc, log in processes:
+        try:
+            # If still alive, kill hard
+            if proc.poll() is None:
+                proc.kill()
+        except Exception:
+            pass
+
+        try:
+            log.close()
+        except Exception:
+            pass
 
     print("[Launcher] All services stopped.")
+
 
 def check_sql():
     try:

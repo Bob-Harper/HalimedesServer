@@ -219,7 +219,8 @@ class HalServerGateway:
             audio_bytes = base64.b64decode(audio_b64)
 
             # VoskModule now handles normalization internally
-            transcript = await self.vosk.transcribe(audio_bytes)
+            transcript = await self.vosk.transcribe_audio(audio_bytes)
+
             text = transcript.get("text", "")
 
             result = {
@@ -239,7 +240,8 @@ class HalServerGateway:
 
 
     async def start_http_server(self):
-        app = web.Application()
+        app = web.Application(client_max_size=10 * 1024 * 1024)
+
         app.router.add_post("/api/chat", self.handle_chat)
         app.router.add_post("/api/inference", self.handle_inference)
         app.router.add_post("/api/transcribe", self.handle_transcribe)
