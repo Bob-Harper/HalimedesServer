@@ -6,51 +6,22 @@ import subprocess
 import os
 import logging
 logger = logging.getLogger("VoskModule")
-
+TARGET_RATE = "16000"
 
 class VoskModule:
     def __init__(self, uri="ws://localhost:2700"):
         self.uri = uri
 
     async def prepare_audio(self, audio_bytes: bytes) -> bytes:
-        # Detect WAV header
-        is_wav = audio_bytes[:4] == b"RIFF"
+        # If it's WAV, strip header and return PCM
+        if audio_bytes[:4] == b"RIFF":
+            return audio_bytes[44:]  # skip WAV header
 
-        with tempfile.NamedTemporaryFile(delete=False) as tmp_in:
-            tmp_in.write(audio_bytes)
-            tmp_in.flush()
-            in_path = tmp_in.name
-
-        with tempfile.NamedTemporaryFile(delete=False) as tmp_out:
-            out_path = tmp_out.name
-
-        # If it's raw PCM from HAL, tell ffmpeg the format explicitly
-        if not is_wav:
-            input_fmt = ["-f", "s16le", "-ac", "1", "-ar", "44100"]
-        else:
-            input_fmt = []
-
-        subprocess.run([
-            "ffmpeg",
-            "-y",
-            *input_fmt,
-            "-i", in_path,
-            "-ac", "1",
-            "-ar", "44100",
-            "-f", "s16le",
-            out_path
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-        with open(out_path, "rb") as f:
-            pcm = f.read()
-
-        os.remove(in_path)
-        os.remove(out_path)
-
-        return pcm
+        # If it's already PCM, return as-is
+        return audio_bytes
 
 
-    async def transcribe_audio(self, audio_bytes: bytes):
+    async def original_transcribe_audio(self, audio_bytes: bytes):
         """
         Accept ANY audio format → normalize → send to Vosk → return transcript.
         """
@@ -62,7 +33,7 @@ class VoskModule:
             logger.info(f"[VoskModule] Normalized audio: {len(audio_bytes)} → {len(pcm)} bytes")
 
             # Send audio in chunks
-            chunk_size = 8000
+            chunk_size = 4000
             for i in range(0, len(pcm), chunk_size):
                 chunk = pcm[i:i+chunk_size]
                 await ws.send(chunk)
@@ -82,10 +53,41 @@ class VoskModule:
 
                     if "result" in data:
                         return data
-                    if "text" in data and data["text"].strip():
-                        return data
 
             except websockets.exceptions.ConnectionClosedOK:
                 logger.info("[VoskModule] Connection closed cleanly")
 
             return final
+
+    async def transcribe_audio(self, audio_bytes: bytes, req_id: str | None = None): # enable for massive debug log
+        if req_id is None:
+            req_id = "noid"
+
+        pcm = await self.prepare_audio(audio_bytes)
+        logger.info(f"[VoskModule] [{req_id}] Input bytes={len(audio_bytes)}, PCM bytes={len(pcm)}")
+
+        async with websockets.connect(self.uri) as ws:
+            logger.info(f"[VoskModule] [{req_id}] Connected to {self.uri}")
+
+            chunk_size = 4000
+            for i in range(0, len(pcm), chunk_size):
+                chunk = pcm[i:i+chunk_size]
+                await ws.send(chunk)
+                logger.debug(f"[VoskModule] [{req_id}] Sent chunk {i//chunk_size} ({len(chunk)} bytes)")
+
+            await ws.send('{"eof":1}')
+            logger.info(f"[VoskModule] [{req_id}] Sent EOF")
+
+            while True:
+                try:
+                    msg = await ws.recv()
+                except websockets.exceptions.ConnectionClosedOK:
+                    logger.info(f"[VoskModule] [{req_id}] Connection closed cleanly with no final result")
+                    return {"error": "no_final_result", "text": ""}
+
+                logger.debug(f"[VoskModule] [{req_id}] Received raw: {msg[:200]}")
+                data = json.loads(msg)
+
+                if "result" in data:
+                    logger.info(f"[VoskModule] [{req_id}] FINAL: {str(data)[:500]}")
+                    return data

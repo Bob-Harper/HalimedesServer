@@ -51,7 +51,7 @@ def load_model(model_name: str):
         n_gpu_layers=-1,
         n_ctx=4096,
         n_threads=os.cpu_count() or 4,
-        verbose=True
+        verbose=False
     )
 
     CURRENT_MODEL_NAME = model_name

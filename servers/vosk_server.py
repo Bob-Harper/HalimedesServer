@@ -20,7 +20,7 @@ if not MODEL_PATH:
 INTERFACE = os.environ.get("VOSK_BIND_HOST", "0.0.0.0")
 PORT = int(os.environ.get("VOSK_BIND_PORT", 2700))
 SPK_MODEL_PATH = os.environ.get("VOSK_SPK_MODEL_PATH")
-SAMPLE_RATE = float(os.environ.get("VOSK_SAMPLE_RATE", 44100))
+SAMPLE_RATE = float(os.environ.get("VOSK_SAMPLE_RATE", 16000))
 MAX_ALTERNATIVES = int(os.environ.get("VOSK_ALTERNATIVES", 0))
 SHOW_WORDS = os.environ.get("VOSK_SHOW_WORDS", "true").lower() == "true"
 
@@ -35,14 +35,27 @@ pool = None
 # Chunk processing (runs in thread pool)
 # ------------------------------------------------------------
 def process_chunk(rec, message):
-    if message == '{"eof" : 1}':
-        return rec.FinalResult(), True
-    if message == '{"reset" : 1}':
-        return rec.FinalResult(), False
-    elif rec.AcceptWaveform(message):
+    # TEXT FRAME (JSON control message)
+    if isinstance(message, str):
+        try:
+            jobj = json.loads(message)
+        except Exception:
+            return rec.PartialResult(), False
+
+        if "eof" in jobj:
+            return rec.FinalResult(), True
+        if "reset" in jobj:
+            return rec.FinalResult(), False
+
+        # Unknown text message
+        return rec.PartialResult(), False
+
+    # BINARY FRAME (audio)
+    if rec.AcceptWaveform(message):
         return rec.Result(), False
     else:
         return rec.PartialResult(), False
+
 
 # ------------------------------------------------------------
 # Per‑connection recognizer loop
@@ -110,7 +123,12 @@ async def recognize(websocket):
         logging.info(f"[VoskServer] Received {len(message)} bytes")
         logging.info(f"[VoskServer] Sending: {response[:200]}")
 
-        await websocket.send(response)
+        try:
+            await websocket.send(response)
+        except websockets.exceptions.ConnectionClosedOK:
+            logging.info("[VoskServer] Client closed normally, stop processing.")
+            # Client closed normally — stop processing
+            break
 
         if stop:
             break

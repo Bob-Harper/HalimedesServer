@@ -10,9 +10,27 @@ from modules.vosk_module import VoskModule
 import tempfile
 import subprocess
 from aiohttp import web
-from prompt_builder_chat import build_prompt_chat, build_context_from_payload_chat, load_system_prompt_chat
 from prompt_builder_inference import build_prompt_inference, build_context_from_payload_inference, load_system_prompt_inference
-DEBUG_LOG = "logging/debug/debug.txt"
+# Logging added below
+import time
+import uuid
+import logging
+
+LOG_DIR = os.path.join(os.path.dirname(__file__), "logging")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+log_path = os.path.join(LOG_DIR, "gateway.log")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    handlers=[
+        logging.FileHandler(log_path, mode="a", encoding="utf-8"),
+        logging.StreamHandler()  # optional: remove if you don't want terminal output
+    ]
+)
+
+logger = logging.getLogger("gateway")
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -31,13 +49,6 @@ LLM_SERVER_URL = f"ws://{LLM_CONNECT_HOST}:{LLM_CONNECT_PORT}"
 
 GATEWAY_BIND_HOST = os.getenv("GATEWAY_BIND_HOST", "0.0.0.0")
 GATEWAY_BIND_PORT = int(os.getenv("GATEWAY_BIND_PORT", 9000))
-
-
-def debug_log(*lines):
-    with open(DEBUG_LOG, "a", encoding="utf-8") as f:
-        for line in lines:
-            f.write(str(line) + "\n")
-        f.write("\n")
 
 def strip_think_blocks(text: str) -> str:
     """
@@ -71,95 +82,8 @@ class HalServerGateway:
         self.sql = SQLModule(DB_CONFIG)
         vosk_uri = f"ws://{os.getenv('VOSK_CONNECT_HOST')}:{os.getenv('VOSK_CONNECT_PORT')}"
         self.vosk = VoskModule(uri=vosk_uri)
-        self.llm_chat = LLMModule("ws://localhost:8765")
         self.llm_infer = LLMModule("ws://localhost:8766")
 
-    #  Conversation based endpoint
-    async def handle_chat(self, request: web.Request):
-        try:
-            payload = await request.json()
-
-            # --- Extract perception -----------------------------------------
-            perception = payload.get("perception", {})
-            user_text = perception.get("user_text", "") or ""
-            user_emotion = perception.get("user_emotion", "neutral")
-            speaker = perception.get("speaker", "unknown")
-
-            # --- Build LLM prompt -------------------------------------------
-            ctx = build_context_from_payload_chat(payload)
-
-            # Build ONLY the user-facing prompt
-            final_user_prompt = build_prompt_chat(ctx)
-            system_prompt = load_system_prompt_chat()
-
-            llm_reply = await self.llm_chat.chat(
-                model="medium",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": final_user_prompt},
-                ],
-            )
-
-            speech_text, clean_reply = extract_speech_text(llm_reply)
-
-            # --- Nonverbal suggestion ---------------------------------------
-            nonverbal = {
-                "gaze": "user",
-                "expression": "neutral",
-            }
-
-            # --- Memory write instructions ----------------------------------
-            memory_write = []
-            if user_text or clean_reply:
-                memory_write.append(
-                    {
-                        "type": "conversation_log",
-                        "speaker": speaker,
-                        "user_text": user_text,
-                        "reply_text": speech_text,
-                        "tags": ["conversation"],
-                    }
-                )
-
-            # --- World state updates ----------------------------------------
-            world_state_update = []
-
-            # --- Unified response -------------------------------------------
-            intent = "conversation"
-
-            result = {
-                "intent": intent,
-                "speech": {
-                    "utterances": [
-                        {
-                            "text": speech_text,
-                            "emotion": user_emotion or "neutral",
-                            "style": "default",
-                            "priority": 1,
-                        }
-                    ]
-                    if clean_reply
-                    else []
-                },
-                "nonverbal": nonverbal,
-                "memory": {
-                    "write": memory_write,
-                },
-                "world_state": {
-                    "update": world_state_update,
-                },
-            }
-
-            return web.json_response(result)
-
-        except Exception as e:
-            return web.json_response(
-                {
-                    "error": "gateway handle_chat failure",
-                    "message": str(e),
-                },
-                status=500,
-            )
 
     #  Inference/Instruction based endpoint
     async def handle_inference(self, request: web.Request):
@@ -174,12 +98,10 @@ class HalServerGateway:
 
             # --- Build inference prompt -------------------------------------
             ctx = build_context_from_payload_inference(payload)
-
-            # Build ONLY the raw inference prompt (no roles)
             final_user_prompt = build_prompt_inference(ctx)
             system_prompt = load_system_prompt_inference()
 
-            # --- RAW INFERENCE CALL (NOT CHAT) -------------------------------
+            # --- RAW INFERENCE CALL -------------------------------
             llm_reply = await self.llm_infer.infer(
                 model="medium",
                 system_prompt=system_prompt,
@@ -207,7 +129,7 @@ class HalServerGateway:
             )
 
     #  Transcription-Only endpoint
-    async def handle_transcribe(self, request: web.Request):
+    async def original_handle_transcribe(self, request: web.Request):
         try:
             data = await request.json()
 
@@ -219,7 +141,7 @@ class HalServerGateway:
             audio_bytes = base64.b64decode(audio_b64)
 
             # VoskModule now handles normalization internally
-            transcript = await self.vosk.transcribe_audio(audio_bytes)
+            transcript = await self.vosk.transcribe_audio(audio_bytes, req_id=req_id)
 
             text = transcript.get("text", "")
 
@@ -234,6 +156,73 @@ class HalServerGateway:
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
 
+    #  Transcription-Only endpoint EXTREME DEBUG EDITION
+    async def handle_transcribe(self, request: web.Request):
+        req_id = str(uuid.uuid4())
+        t0 = time.monotonic()
+
+        logger.info(f"[Gateway] [{req_id}] /api/transcribe START")
+
+        # -----------------------------
+        # 1. Read JSON
+        # -----------------------------
+        try:
+            data = await request.json()
+            logger.info(f"[Gateway] [{req_id}] JSON received: keys={list(data.keys())}")
+        except Exception as e:
+            logger.error(f"[Gateway] [{req_id}] JSON parse error: {repr(e)}")
+            return web.json_response({"error": "json_parse_error", "detail": repr(e)}, status=400)
+
+        # -----------------------------
+        # 2. Extract base64
+        # -----------------------------
+        audio_b64 = data.get("audio_b64")
+        if not audio_b64:
+            logger.error(f"[Gateway] [{req_id}] Missing audio_b64")
+            return web.json_response({"error": "missing_audio_b64"}, status=400)
+
+        logger.info(f"[Gateway] [{req_id}] audio_b64 length={len(audio_b64)}")
+
+        # -----------------------------
+        # 3. Decode base64
+        # -----------------------------
+        try:
+            audio_bytes = base64.b64decode(audio_b64)
+            logger.info(f"[Gateway] [{req_id}] Decoded audio bytes={len(audio_bytes)}")
+        except Exception as e:
+            logger.error(f"[Gateway] [{req_id}] Base64 decode error: {repr(e)}")
+            return web.json_response({"error": "b64_decode_error", "detail": repr(e)}, status=400)
+
+        # -----------------------------
+        # 4. Call Vosk
+        # -----------------------------
+        try:
+            t_vosk0 = time.monotonic()
+            transcript = await self.vosk.transcribe_audio(audio_bytes, req_id=req_id)
+            t_vosk1 = time.monotonic()
+
+            logger.info(f"[Gateway] [{req_id}] Vosk returned in {(t_vosk1 - t_vosk0)*1000:.2f} ms")
+            logger.info(f"[Gateway] [{req_id}] Vosk transcript preview: {str(transcript)[:300]}")
+        except Exception as e:
+            logger.error(f"[Gateway] [{req_id}] Vosk exception: {repr(e)}")
+            return web.json_response({"error": "vosk_exception", "detail": repr(e)}, status=500)
+
+        # -----------------------------
+        # 5. Build response
+        # -----------------------------
+        text = transcript.get("text", "")
+        result = {
+            "text": text,
+            "speaker": "unknown",
+            "emotion": "neutral"
+        }
+
+        t1 = time.monotonic()
+        logger.info(f"[Gateway] [{req_id}] /api/transcribe END total={(t1 - t0)*1000:.2f} ms")
+        logger.info(f"[Gateway] [{req_id}] Response: {result}")
+
+        return web.json_response(result)
+
     # -------------------------
     # Server  Endpoints
     # -------------------------
@@ -242,7 +231,6 @@ class HalServerGateway:
     async def start_http_server(self):
         app = web.Application(client_max_size=10 * 1024 * 1024)
 
-        app.router.add_post("/api/chat", self.handle_chat)
         app.router.add_post("/api/inference", self.handle_inference)
         app.router.add_post("/api/transcribe", self.handle_transcribe)
 
