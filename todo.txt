@@ -1,0 +1,1 @@
+turn off logging for voosk and llm and gateway for now.  stable for speech and perception/worldstate updates.
