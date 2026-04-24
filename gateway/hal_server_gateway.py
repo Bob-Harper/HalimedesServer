@@ -146,9 +146,7 @@ class HalServerGateway:
             text = transcript.get("text", "")
 
             result = {
-                "text": text,
-                "speaker": "unknown",
-                "emotion": "neutral"
+                "text": text
             }
 
             return web.json_response(result)
