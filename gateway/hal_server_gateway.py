@@ -16,7 +16,11 @@ import time
 import uuid
 import logging
 
-LOG_DIR = os.path.join(os.path.dirname(__file__), "logging")
+# Resolve the server root directory (one level above gateway/)
+ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
+
+# Correct logging directory at the server root
+LOG_DIR = os.path.join(ROOT_DIR, "logging")
 os.makedirs(LOG_DIR, exist_ok=True)
 
 log_path = os.path.join(LOG_DIR, "gateway.log")
@@ -26,7 +30,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     handlers=[
         logging.FileHandler(log_path, mode="a", encoding="utf-8"),
-        logging.StreamHandler()  # optional: remove if you don't want terminal output
+        logging.StreamHandler()
     ]
 )
 
@@ -90,33 +94,33 @@ class HalServerGateway:
         try:
             payload = await request.json()
 
-            # --- Extract perception -----------------------------------------
-            perception = payload.get("perception", {})
-            user_text = perception.get("user_text", "") or ""
-            user_emotion = perception.get("user_emotion", "neutral")
-            speaker = perception.get("speaker", "unknown")
+            # HAL now sends the fully assembled prompt
+            final_user_prompt = payload.get("prompt", "") or ""
 
-            # --- Build inference prompt -------------------------------------
-            ctx = build_context_from_payload_inference(payload)
-            final_user_prompt = build_prompt_inference(ctx)
+            # System prompt still lives on the server
             system_prompt = load_system_prompt_inference()
 
-            # --- RAW INFERENCE CALL -------------------------------
+            # Call LLM over WebSocket (LLMModule unchanged)
             llm_reply = await self.llm_infer.infer(
                 model="medium",
                 system_prompt=system_prompt,
                 user_prompt=final_user_prompt
             )
 
-            # llm_reply["response"] contains the raw JSON string
-            content = llm_reply.get("response", "")
+            content = llm_reply.get("response", "") or ""
+
+            # Strip markdown fences
+            content = content.replace("```json", "").replace("```", "").strip()
+
+            # Strip <think> blocks
+            content = strip_think_blocks(content)
+
             try:
                 parsed = json.loads(content)
             except Exception:
                 parsed = {}
 
-            # --- Unified response -------------------------------------------
-            # Inference mode returns the FINAL JSON, so we just pass it through.
+
             return web.json_response(parsed)
 
         except Exception as e:
@@ -129,46 +133,16 @@ class HalServerGateway:
             )
 
     #  Transcription-Only endpoint
-    async def original_handle_transcribe(self, request: web.Request):
-        try:
-            data = await request.json()
-
-            audio_b64 = data.get("audio_b64")
-            if not audio_b64:
-                return web.json_response({"error": "missing audio_b64"}, status=400)
-
-            # Decode base64 → bytes
-            audio_bytes = base64.b64decode(audio_b64)
-
-            # VoskModule now handles normalization internally
-            transcript = await self.vosk.transcribe_audio(audio_bytes, req_id=req_id)
-
-            text = transcript.get("text", "")
-
-            result = {
-                "text": text
-            }
-
-            return web.json_response(result)
-
-        except Exception as e:
-            return web.json_response({"error": str(e)}, status=500)
-
-    #  Transcription-Only endpoint EXTREME DEBUG EDITION
     async def handle_transcribe(self, request: web.Request):
         req_id = str(uuid.uuid4())
         t0 = time.monotonic()
-
-        logger.info(f"[Gateway] [{req_id}] /api/transcribe START")
 
         # -----------------------------
         # 1. Read JSON
         # -----------------------------
         try:
             data = await request.json()
-            logger.info(f"[Gateway] [{req_id}] JSON received: keys={list(data.keys())}")
         except Exception as e:
-            logger.error(f"[Gateway] [{req_id}] JSON parse error: {repr(e)}")
             return web.json_response({"error": "json_parse_error", "detail": repr(e)}, status=400)
 
         # -----------------------------
@@ -176,19 +150,15 @@ class HalServerGateway:
         # -----------------------------
         audio_b64 = data.get("audio_b64")
         if not audio_b64:
-            logger.error(f"[Gateway] [{req_id}] Missing audio_b64")
             return web.json_response({"error": "missing_audio_b64"}, status=400)
 
-        logger.info(f"[Gateway] [{req_id}] audio_b64 length={len(audio_b64)}")
 
         # -----------------------------
         # 3. Decode base64
         # -----------------------------
         try:
             audio_bytes = base64.b64decode(audio_b64)
-            logger.info(f"[Gateway] [{req_id}] Decoded audio bytes={len(audio_bytes)}")
         except Exception as e:
-            logger.error(f"[Gateway] [{req_id}] Base64 decode error: {repr(e)}")
             return web.json_response({"error": "b64_decode_error", "detail": repr(e)}, status=400)
 
         # -----------------------------
@@ -199,25 +169,29 @@ class HalServerGateway:
             transcript = await self.vosk.transcribe_audio(audio_bytes, req_id=req_id)
             t_vosk1 = time.monotonic()
 
-            logger.info(f"[Gateway] [{req_id}] Vosk returned in {(t_vosk1 - t_vosk0)*1000:.2f} ms")
-            logger.info(f"[Gateway] [{req_id}] Vosk transcript preview: {str(transcript)[:300]}")
         except Exception as e:
-            logger.error(f"[Gateway] [{req_id}] Vosk exception: {repr(e)}")
             return web.json_response({"error": "vosk_exception", "detail": repr(e)}, status=500)
 
         # -----------------------------
         # 5. Build response
         # -----------------------------
         text = transcript.get("text", "")
+
+        words = transcript.get("result", [])
+        if words:
+            confidence = sum(w.get("conf", 0) for w in words) / len(words)
+            duration = words[-1].get("end", None)
+        else:
+            confidence = None
+            duration = None
+
         result = {
             "text": text,
-            "speaker": "unknown",
-            "emotion": "neutral"
+            "confidence": confidence,
+            "duration": duration,
         }
 
         t1 = time.monotonic()
-        logger.info(f"[Gateway] [{req_id}] /api/transcribe END total={(t1 - t0)*1000:.2f} ms")
-        logger.info(f"[Gateway] [{req_id}] Response: {result}")
 
         return web.json_response(result)
 
