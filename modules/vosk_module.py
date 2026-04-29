@@ -1,4 +1,3 @@
-import asyncio
 import websockets
 import json
 import logging
@@ -36,13 +35,14 @@ class VoskModule:
             while True:
                 try:
                     msg = await ws.recv()
+                    logger.info(f"[VoskModule] Pre-json data:\n\n{msg}\n\n")
                 except websockets.exceptions.ConnectionClosedOK:
                     logger.info(f"[VoskModule] [{req_id}] Connection closed cleanly with no final result")
                     return {"error": "no_final_result", "text": ""}
 
-                # logger.debug(f"[VoskModule] [{req_id}] Received raw: {msg[:200]}")
+                logger.debug(f"[VoskModule] [{req_id}] Received raw: {msg[:200]}")
                 data = json.loads(msg)
 
-                if "result" in data:
+                if "text" in data:
                     logger.info(f"[VoskModule] [{req_id}] FINAL: {str(data)[:500]}")
                     return data

@@ -1,18 +1,16 @@
 import os
 import re
 import json
+import requests
 import base64
 import asyncio
 from dotenv import load_dotenv
 from modules.llm_module import LLMModule
 from modules.sql_module import SQLModule
 from modules.vosk_module import VoskModule
-import tempfile
-import subprocess
 from aiohttp import web
-from prompt_builder_inference import build_prompt_inference, build_context_from_payload_inference, load_system_prompt_inference
+from typing import cast
 # Logging added below
-import time
 import uuid
 import logging
 
@@ -50,9 +48,11 @@ DB_CONFIG = {
 LLM_CONNECT_HOST = os.getenv("LLM_CONNECT_HOST", "127.0.0.1")
 LLM_CONNECT_PORT = int(os.getenv("LLM_CONNECT_PORT", 8765))
 LLM_SERVER_URL = f"ws://{LLM_CONNECT_HOST}:{LLM_CONNECT_PORT}"
-
+SYSTEM_PROMPT_INFERENCE = os.getenv("SYSTEM_PROMPT_INFERENCE")
 GATEWAY_BIND_HOST = os.getenv("GATEWAY_BIND_HOST", "0.0.0.0")
 GATEWAY_BIND_PORT = int(os.getenv("GATEWAY_BIND_PORT", 9000))
+HALIMEDES_IP = os.getenv("HALIMEDES_IP")
+HALIMEDES_PORT = int(os.getenv("HALIMEDES_PORT", 8123))
 
 def strip_think_blocks(text: str) -> str:
     """
@@ -80,13 +80,27 @@ def extract_speech_text(llm_reply):
 
     return speech_text, clean_reply
 
+async def hardware_proxy(request):
+    data = await request.json()
+    components = data.get("components", [])
+
+    url = f"http://{HALIMEDES_IP}:{HALIMEDES_PORT}/api/hardware"
+
+    resp = requests.post(
+        url,
+        json={"components": components},
+        timeout=2
+    )
+
+    return web.json_response(resp.json())
+
 
 class HalServerGateway:
     def __init__(self):
         self.sql = SQLModule(DB_CONFIG)
         vosk_uri = f"ws://{os.getenv('VOSK_CONNECT_HOST')}:{os.getenv('VOSK_CONNECT_PORT')}"
         self.vosk = VoskModule(uri=vosk_uri)
-        self.llm_infer = LLMModule("ws://localhost:8766")
+        self.llm_infer = LLMModule("ws://localhost:8765")
 
 
     #  Inference/Instruction based endpoint
@@ -97,16 +111,10 @@ class HalServerGateway:
             # HAL now sends the fully assembled prompt
             final_user_prompt = payload.get("prompt", "") or ""
 
-            # System prompt still lives on the server
-            system_prompt = load_system_prompt_inference()
+            messages = [{"role": "user", "content": final_user_prompt}]
 
-            # Call LLM over WebSocket (LLMModule unchanged)
-            llm_reply = await self.llm_infer.infer(
-                model="medium",
-                system_prompt=system_prompt,
-                user_prompt=final_user_prompt
-            )
-
+            llm_reply = await self.llm_infer.infer(model="medium", messages=messages)
+            logger.info(f"\n[handle_inference]\n{llm_reply}\n")
             content = llm_reply.get("response", "") or ""
 
             # Strip markdown fences
@@ -117,6 +125,8 @@ class HalServerGateway:
 
             try:
                 parsed = json.loads(content)
+                logger.info(f"\n[handle_inference]\n{llm_reply}\n")
+
             except Exception:
                 parsed = {}
 
@@ -124,18 +134,24 @@ class HalServerGateway:
             return web.json_response(parsed)
 
         except Exception as e:
-            return web.json_response(
-                {
-                    "error": "gateway_inference_failure",
-                    "message": str(e),
-                },
-                status=500,
-            )
+            logger.exception("handle_inference failed")
+
+            # Always return a valid cognition packet so HAL never breaks
+            fallback = {
+                "intent": "error",
+                "speech": ["This"],
+                "actions": ["is"],
+                "memory_updates": ["a"],
+                "world_updates": ["fail"],
+                "error_detail": str(e)
+            }
+
+            return web.json_response(fallback)
+
 
     #  Transcription-Only endpoint
     async def handle_transcribe(self, request: web.Request):
         req_id = str(uuid.uuid4())
-        t0 = time.monotonic()
 
         # -----------------------------
         # 1. Read JSON
@@ -165,9 +181,7 @@ class HalServerGateway:
         # 4. Call Vosk
         # -----------------------------
         try:
-            t_vosk0 = time.monotonic()
             transcript = await self.vosk.transcribe_audio(audio_bytes, req_id=req_id)
-            t_vosk1 = time.monotonic()
 
         except Exception as e:
             return web.json_response({"error": "vosk_exception", "detail": repr(e)}, status=500)
@@ -177,7 +191,7 @@ class HalServerGateway:
         # -----------------------------
         text = transcript.get("text", "")
 
-        words = transcript.get("result", [])
+        words = cast(list[dict], transcript.get("result", []))
         if words:
             confidence = sum(w.get("conf", 0) for w in words) / len(words)
             duration = words[-1].get("end", None)
@@ -191,8 +205,6 @@ class HalServerGateway:
             "duration": duration,
         }
 
-        t1 = time.monotonic()
-
         return web.json_response(result)
 
     # -------------------------
@@ -205,6 +217,7 @@ class HalServerGateway:
 
         app.router.add_post("/api/inference", self.handle_inference)
         app.router.add_post("/api/transcribe", self.handle_transcribe)
+        app.router.add_post("/api/hardware", hardware_proxy)
 
         runner = web.AppRunner(app)
         await runner.setup()
@@ -216,7 +229,6 @@ class HalServerGateway:
 
 async def main():
     gateway = HalServerGateway()
-    # await gateway.async_init()
     await gateway.start_http_server()
     await asyncio.Event().wait()
 

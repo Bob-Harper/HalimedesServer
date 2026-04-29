@@ -1,14 +1,11 @@
 # root/start_hal_services.py
 import asyncio
 import subprocess
-import websockets
 import sys
 import os
 import socket
 import time
-import signal
 import psycopg2
-import aiohttp
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,7 +13,6 @@ load_dotenv()
 # -------------------------
 # Paths
 # -------------------------
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = BASE_DIR
 env = os.environ.copy()
@@ -29,10 +25,10 @@ GATEWAY_SCRIPT = os.path.join(ROOT, "gateway", "hal_server_gateway.py")
 LOG_DIR = os.path.join(ROOT, "logging")
 os.makedirs(LOG_DIR, exist_ok=True)
 
+
 # -------------------------
 # Process Management
 # -------------------------
-
 def wait_for_port(host, port, timeout=60):
     start = time.time()
     print(f"[Launcher] wait_for_port: host={host} port={port} timeout={timeout}")
@@ -70,6 +66,7 @@ def start_process(name, script_path, log_name):
     )
 
     return process, log_file
+
 
 def stop_processes(processes):
     print("[Launcher] Shutting down services...")
@@ -117,13 +114,23 @@ def check_sql():
         print(f"[Launcher] SQL connection FAILED: {e}")
         raise
 
+    
+def check_for_old_errors():
+    for fname in os.listdir(LOG_DIR):
+        if fname.startswith("errors_") and os.path.getsize(os.path.join(LOG_DIR, fname)) > 0:
+            print(f"[Launcher] WARNING: Error log exists: {fname}")
+            print("           You should inspect this before deleting it.")
+
+
 # -------------------------
 # Launch All Services
 # -------------------------
-
 async def launch_all_services():
-    processes = []
 
+    print("[Launcher] Checking for previous errors...")
+    check_for_old_errors()
+
+    processes = []
     print("[Launcher] Checking SQL...")
     check_sql()
 
@@ -171,10 +178,10 @@ async def launch_all_services():
 
     return processes
 
+
 # -------------------------
 # Main Entry Point
 # -------------------------
-
 async def async_main():
     print("[Launcher] Initializing Hal services...")
 
@@ -188,8 +195,10 @@ async def async_main():
     except KeyboardInterrupt:
         stop_processes(processes)
 
+
 def main():
     asyncio.run(async_main())
+
 
 if __name__ == "__main__":
     main()

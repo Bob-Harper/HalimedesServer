@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 import asyncio
 import websockets
 import concurrent.futures
@@ -146,7 +145,7 @@ async def start():
 
     pool = concurrent.futures.ThreadPoolExecutor(os.cpu_count() or 1)
 
-    print("Vosk loading model from:", MODEL_PATH)
+    logging.info("Vosk loading model from:", MODEL_PATH)
 
     server = await websockets.serve(recognize, INTERFACE, PORT)
     await server.wait_closed()

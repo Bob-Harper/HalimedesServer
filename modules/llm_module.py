@@ -1,5 +1,3 @@
-# gateway/llm_module.py
-
 import json
 import websockets
 import asyncio
@@ -8,17 +6,19 @@ class LLMModule:
     def __init__(self, url: str):
         self.url = url
 
-    async def infer(self, model: str, system_prompt: str, user_prompt: str):
+    async def infer(self, model: str, messages: list):
         payload = {
             "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
+            "messages": messages,
             "temperature": 0.0
         }
 
-        async with websockets.connect(self.url) as ws:
+        async with websockets.connect(
+            self.url,
+            ping_interval=300,
+            ping_timeout=300,
+            close_timeout=300
+        ) as ws:
             await ws.send(json.dumps(payload))
-            response = await ws.recv()
+            response = await asyncio.wait_for(ws.recv(), timeout=600)
             return json.loads(response)
