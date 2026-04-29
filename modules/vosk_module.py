@@ -40,7 +40,7 @@ class VoskModule:
                     logger.info(f"[VoskModule] [{req_id}] Connection closed cleanly with no final result")
                     return {"error": "no_final_result", "text": ""}
 
-                logger.debug(f"[VoskModule] [{req_id}] Received raw: {msg[:200]}")
+                # logger.debug(f"[VoskModule] [{req_id}] Received raw: {msg[:200]}")
                 data = json.loads(msg)
 
                 if "result" in data:
