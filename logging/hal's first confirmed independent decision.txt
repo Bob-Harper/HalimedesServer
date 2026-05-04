@@ -1,0 +1,168 @@
+2026-04-29 04:35:03,766 DEBUG = connection is CONNECTING
+2026-04-29 04:35:03,767 DEBUG < GET / HTTP/1.1
+2026-04-29 04:35:03,767 DEBUG < Host: localhost:8765
+2026-04-29 04:35:03,767 DEBUG < Upgrade: websocket
+2026-04-29 04:35:03,768 DEBUG < Connection: Upgrade
+2026-04-29 04:35:03,768 DEBUG < Sec-WebSocket-Key: Sbtbqe4ecrrqn+YjwYZUXQ==
+2026-04-29 04:35:03,768 DEBUG < Sec-WebSocket-Version: 13
+2026-04-29 04:35:03,768 DEBUG < Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits
+2026-04-29 04:35:03,768 DEBUG < User-Agent: Python/3.10 websockets/16.0
+2026-04-29 04:35:03,768 DEBUG > HTTP/1.1 101 Switching Protocols
+2026-04-29 04:35:03,768 DEBUG > Date: Wed, 29 Apr 2026 08:35:03 GMT
+2026-04-29 04:35:03,769 DEBUG > Upgrade: websocket
+2026-04-29 04:35:03,769 DEBUG > Connection: Upgrade
+2026-04-29 04:35:03,769 DEBUG > Sec-WebSocket-Accept: D9HK0BOzcybDrWfjcV8Ji0bBnZ0=
+2026-04-29 04:35:03,769 DEBUG > Sec-WebSocket-Extensions: permessage-deflate; server_max_window_bits=12; client_max_window_bits=12
+2026-04-29 04:35:03,769 DEBUG > Server: Python/3.10 websockets/16.0
+2026-04-29 04:35:03,769 DEBUG = connection is OPEN
+2026-04-29 04:35:03,769 INFO connection open
+2026-04-29 04:35:03,769 INFO >>> Handle Inference <<<
+2026-04-29 04:35:03,770 DEBUG < TEXT '{"model": "medium", "messages": [{"role": "user...}], "temperature": 0.0}' [536 bytes]
+2026-04-29 04:35:03,770 INFO 
+[WS RECV RAW]
+{"model": "medium", "messages": [{"role": "user", "content": "/nothink\n\"{\\n  \\\"event_type\\\": \\\"user_utterance\\\",\\n  \\\"timestamp\\\": 1777451701.731421,\\n  \\\"last_intent\\\": \\\"IDLE\\\",\\n  \\\"perception\\\": {\\n    \\\"user_text\\\": \\\"please run a diagnostic on your battery and cpu\\\",\\n    \\\"speaker\\\": \\\"Dad\\\",\\n    \\\"user_emotion\\\": \\\"anger\\\",\\n    \\\"speech_confidence\\\": 1.0,\\n    \\\"utterance_duration\\\": 4.05,\\n    \\\"truncated\\\": false\\n  }\\n}\""}], "temperature": 0.0}
+
+2026-04-29 04:35:03,771 INFO 
+[MODEL CALL] loop=0
+2026-04-29 04:35:03,771 INFO [MESSAGES IN] [
+  {
+    "role": "system",
+    "content": "You are Hal, running in a tool-test harness.\n\nYou can use tools to fetch external HTTP resources and to query your robot hardware state.\n\nTOOLS AND CALL FORMAT\n---------------------\n\nWhen you need external information, call a tool using this exact format:\n\n<tool_call>\n{\"name\": \"<tool_name>\", \"arguments\": {...}}\n</tool_call>\n\nAfter the tool response arrives, continue your reasoning and answer normally.\n\nAvailable tools:\n\n1. fetch_url(url: string)\n   - Fetches a URL using HTTP GET and returns raw text.\n   - Use this for endpoints like:\n     - https://httpbin.org/uuid\n     - https://httpbin.org/ip\n     - https://httpbin.org/headers\n     - https://httpbin.org/get?foo=bar\n     - https://httpbin.org/anything\n\n2. get_hardware_state(components: list[string])\n   - Queries Hal's live hardware state via the gateway and HAL's API.\n   - You may ONLY request component names from this fixed list:\n       [\"battery\", \"cpu...
+
+2026-04-29 04:35:06,396 INFO [MODEL RAW OUTPUT]
+{"name": "get_hardware_state", "arguments": {"components": ["battery", "cpu"]}}
+...
+
+2026-04-29 04:35:06,396 INFO [TOOL LOOP] Detected tool_call: name=get_hardware_state, args={'components': ['battery', 'cpu']}
+2026-04-29 04:35:06,396 INFO [TOOL get_hardware_state] components=['battery', 'cpu']
+2026-04-29 04:35:06,398 DEBUG Starting new HTTP connection (1): 127.0.0.1:9000
+2026-04-29 04:35:06,457 DEBUG http://127.0.0.1:9000 "POST /api/hardware HTTP/1.1" 200 111
+2026-04-29 04:35:06,457 INFO [TOOL get_hardware_state] status=200, body='{"battery": {"voltage": 8.314065934065933, "status": "Full"}, "cpu": {"temperature": 55.991, "status": "Warm"}}'
+2026-04-29 04:35:06,458 INFO 
+[MODEL CALL] loop=1
+2026-04-29 04:35:06,458 INFO [MESSAGES IN] [
+  {
+    "role": "system",
+    "content": "You are Hal, running in a tool-test harness.\n\nYou can use tools to fetch external HTTP resources and to query your robot hardware state.\n\nTOOLS AND CALL FORMAT\n---------------------\n\nWhen you need external information, call a tool using this exact format:\n\n<tool_call>\n{\"name\": \"<tool_name>\", \"arguments\": {...}}\n</tool_call>\n\nAfter the tool response arrives, continue your reasoning and answer normally.\n\nAvailable tools:\n\n1. fetch_url(url: string)\n   - Fetches a URL using HTTP GET and returns raw text.\n   - Use this for endpoints like:\n     - https://httpbin.org/uuid\n     - https://httpbin.org/ip\n     - https://httpbin.org/headers\n     - https://httpbin.org/get?foo=bar\n     - https://httpbin.org/anything\n\n2. get_hardware_state(components: list[string])\n   - Queries Hal's live hardware state via the gateway and HAL's API.\n   - You may ONLY request component names from this fixed list:\n       [\"battery\", \"cpu...
+
+2026-04-29 04:35:08,340 INFO [MODEL RAW OUTPUT]
+{"name": "get_hardware_state", "arguments": {"components": ["load"]}}
+...
+
+2026-04-29 04:35:08,340 INFO [TOOL LOOP] Detected tool_call: name=get_hardware_state, args={'components': ['load']}
+2026-04-29 04:35:08,341 INFO [TOOL get_hardware_state] components=['load']
+2026-04-29 04:35:08,342 DEBUG Starting new HTTP connection (1): 127.0.0.1:9000
+2026-04-29 04:35:08,409 DEBUG http://127.0.0.1:9000 "POST /api/hardware HTTP/1.1" 200 98
+2026-04-29 04:35:08,409 INFO [TOOL get_hardware_state] status=200, body='{"load": {"load1": 3.306640625, "load5": 2.66064453125, "load15": 2.0185546875, "status": "Busy"}}'
+2026-04-29 04:35:08,410 INFO 
+[MODEL CALL] loop=2
+2026-04-29 04:35:08,410 INFO [MESSAGES IN] [
+  {
+    "role": "system",
+    "content": "You are Hal, running in a tool-test harness.\n\nYou can use tools to fetch external HTTP resources and to query your robot hardware state.\n\nTOOLS AND CALL FORMAT\n---------------------\n\nWhen you need external information, call a tool using this exact format:\n\n<tool_call>\n{\"name\": \"<tool_name>\", \"arguments\": {...}}\n</tool_call>\n\nAfter the tool response arrives, continue your reasoning and answer normally.\n\nAvailable tools:\n\n1. fetch_url(url: string)\n   - Fetches a URL using HTTP GET and returns raw text.\n   - Use this for endpoints like:\n     - https://httpbin.org/uuid\n     - https://httpbin.org/ip\n     - https://httpbin.org/headers\n     - https://httpbin.org/get?foo=bar\n     - https://httpbin.org/anything\n\n2. get_hardware_state(components: list[string])\n   - Queries Hal's live hardware state via the gateway and HAL's API.\n   - You may ONLY request component names from this fixed list:\n       [\"battery\", \"cpu...
+
+2026-04-29 04:35:10,134 INFO [MODEL RAW OUTPUT]
+{"name": "get_hardware_state", "arguments": {"components": ["memory"]}}
+...
+
+2026-04-29 04:35:10,134 INFO [TOOL LOOP] Detected tool_call: name=get_hardware_state, args={'components': ['memory']}
+2026-04-29 04:35:10,134 INFO [TOOL get_hardware_state] components=['memory']
+2026-04-29 04:35:10,136 DEBUG Starting new HTTP connection (1): 127.0.0.1:9000
+2026-04-29 04:35:10,190 DEBUG http://127.0.0.1:9000 "POST /api/hardware HTTP/1.1" 200 75
+2026-04-29 04:35:10,190 INFO [TOOL get_hardware_state] status=200, body='{"memory": {"available": 446504960, "percent": 88.6, "status": "Critical"}}'
+2026-04-29 04:35:10,191 INFO 
+[MODEL CALL] loop=3
+2026-04-29 04:35:10,191 INFO [MESSAGES IN] [
+  {
+    "role": "system",
+    "content": "You are Hal, running in a tool-test harness.\n\nYou can use tools to fetch external HTTP resources and to query your robot hardware state.\n\nTOOLS AND CALL FORMAT\n---------------------\n\nWhen you need external information, call a tool using this exact format:\n\n<tool_call>\n{\"name\": \"<tool_name>\", \"arguments\": {...}}\n</tool_call>\n\nAfter the tool response arrives, continue your reasoning and answer normally.\n\nAvailable tools:\n\n1. fetch_url(url: string)\n   - Fetches a URL using HTTP GET and returns raw text.\n   - Use this for endpoints like:\n     - https://httpbin.org/uuid\n     - https://httpbin.org/ip\n     - https://httpbin.org/headers\n     - https://httpbin.org/get?foo=bar\n     - https://httpbin.org/anything\n\n2. get_hardware_state(components: list[string])\n   - Queries Hal's live hardware state via the gateway and HAL's API.\n   - You may ONLY request component names from this fixed list:\n       [\"battery\", \"cpu...
+
+2026-04-29 04:35:12,010 INFO [MODEL RAW OUTPUT]
+{"name": "get_hardware_state", "arguments": {"components": ["battery"]}}
+...
+
+2026-04-29 04:35:12,010 INFO [TOOL LOOP] Detected tool_call: name=get_hardware_state, args={'components': ['battery']}
+2026-04-29 04:35:12,010 INFO [TOOL get_hardware_state] components=['battery']
+2026-04-29 04:35:12,011 DEBUG Starting new HTTP connection (1): 127.0.0.1:9000
+2026-04-29 04:35:12,058 DEBUG http://127.0.0.1:9000 "POST /api/hardware HTTP/1.1" 200 61
+2026-04-29 04:35:12,059 INFO [TOOL get_hardware_state] status=200, body='{"battery": {"voltage": 8.314065934065933, "status": "Full"}}'
+2026-04-29 04:35:12,059 INFO 
+[MODEL CALL] loop=4
+2026-04-29 04:35:12,059 INFO [MESSAGES IN] [
+  {
+    "role": "system",
+    "content": "You are Hal, running in a tool-test harness.\n\nYou can use tools to fetch external HTTP resources and to query your robot hardware state.\n\nTOOLS AND CALL FORMAT\n---------------------\n\nWhen you need external information, call a tool using this exact format:\n\n<tool_call>\n{\"name\": \"<tool_name>\", \"arguments\": {...}}\n</tool_call>\n\nAfter the tool response arrives, continue your reasoning and answer normally.\n\nAvailable tools:\n\n1. fetch_url(url: string)\n   - Fetches a URL using HTTP GET and returns raw text.\n   - Use this for endpoints like:\n     - https://httpbin.org/uuid\n     - https://httpbin.org/ip\n     - https://httpbin.org/headers\n     - https://httpbin.org/get?foo=bar\n     - https://httpbin.org/anything\n\n2. get_hardware_state(components: list[string])\n   - Queries Hal's live hardware state via the gateway and HAL's API.\n   - You may ONLY request component names from this fixed list:\n       [\"battery\", \"cpu...
+
+2026-04-29 04:35:14,371 INFO [MODEL RAW OUTPUT]
+{"name": "get_hardware_state", "arguments": {"components": ["cpu"]}}
+...
+
+2026-04-29 04:35:14,371 INFO [TOOL LOOP] Detected tool_call: name=get_hardware_state, args={'components': ['cpu']}
+2026-04-29 04:35:14,371 INFO [TOOL get_hardware_state] components=['cpu']
+2026-04-29 04:35:14,372 DEBUG Starting new HTTP connection (1): 127.0.0.1:9000
+2026-04-29 04:35:14,422 DEBUG http://127.0.0.1:9000 "POST /api/hardware HTTP/1.1" 200 50
+2026-04-29 04:35:14,422 INFO [TOOL get_hardware_state] status=200, body='{"cpu": {"temperature": 55.991, "status": "Warm"}}'
+2026-04-29 04:35:14,423 INFO 
+[MODEL CALL] loop=5
+2026-04-29 04:35:14,423 INFO [MESSAGES IN] [
+  {
+    "role": "system",
+    "content": "You are Hal, running in a tool-test harness.\n\nYou can use tools to fetch external HTTP resources and to query your robot hardware state.\n\nTOOLS AND CALL FORMAT\n---------------------\n\nWhen you need external information, call a tool using this exact format:\n\n<tool_call>\n{\"name\": \"<tool_name>\", \"arguments\": {...}}\n</tool_call>\n\nAfter the tool response arrives, continue your reasoning and answer normally.\n\nAvailable tools:\n\n1. fetch_url(url: string)\n   - Fetches a URL using HTTP GET and returns raw text.\n   - Use this for endpoints like:\n     - https://httpbin.org/uuid\n     - https://httpbin.org/ip\n     - https://httpbin.org/headers\n     - https://httpbin.org/get?foo=bar\n     - https://httpbin.org/anything\n\n2. get_hardware_state(components: list[string])\n   - Queries Hal's live hardware state via the gateway and HAL's API.\n   - You may ONLY request component names from this fixed list:\n       [\"battery\", \"cpu...
+
+2026-04-29 04:35:15,970 INFO [MODEL RAW OUTPUT]
+{"name": "get_hardware_state", "arguments": {"components": ["load"]}}
+...
+
+2026-04-29 04:35:15,971 INFO [TOOL LOOP] Detected tool_call: name=get_hardware_state, args={'components': ['load']}
+2026-04-29 04:35:15,971 INFO [TOOL get_hardware_state] components=['load']
+2026-04-29 04:35:15,971 DEBUG Starting new HTTP connection (1): 127.0.0.1:9000
+2026-04-29 04:35:16,033 DEBUG http://127.0.0.1:9000 "POST /api/hardware HTTP/1.1" 200 98
+2026-04-29 04:35:16,033 INFO [TOOL get_hardware_state] status=200, body='{"load": {"load1": 3.306640625, "load5": 2.66064453125, "load15": 2.0185546875, "status": "Busy"}}'
+2026-04-29 04:35:16,034 INFO 
+[MODEL CALL] loop=6
+2026-04-29 04:35:16,034 INFO [MESSAGES IN] [
+  {
+    "role": "system",
+    "content": "You are Hal, running in a tool-test harness.\n\nYou can use tools to fetch external HTTP resources and to query your robot hardware state.\n\nTOOLS AND CALL FORMAT\n---------------------\n\nWhen you need external information, call a tool using this exact format:\n\n<tool_call>\n{\"name\": \"<tool_name>\", \"arguments\": {...}}\n</tool_call>\n\nAfter the tool response arrives, continue your reasoning and answer normally.\n\nAvailable tools:\n\n1. fetch_url(url: string)\n   - Fetches a URL using HTTP GET and returns raw text.\n   - Use this for endpoints like:\n     - https://httpbin.org/uuid\n     - https://httpbin.org/ip\n     - https://httpbin.org/headers\n     - https://httpbin.org/get?foo=bar\n     - https://httpbin.org/anything\n\n2. get_hardware_state(components: list[string])\n   - Queries Hal's live hardware state via the gateway and HAL's API.\n   - You may ONLY request component names from this fixed list:\n       [\"battery\", \"cpu...
+
+2026-04-29 04:35:18,140 INFO [MODEL RAW OUTPUT]
+{"name": "get_hardware_state", "arguments": {"components": ["memory"]}}
+...
+
+2026-04-29 04:35:18,140 INFO [TOOL LOOP] Detected tool_call: name=get_hardware_state, args={'components': ['memory']}
+2026-04-29 04:35:18,141 INFO [TOOL get_hardware_state] components=['memory']
+2026-04-29 04:35:18,142 DEBUG Starting new HTTP connection (1): 127.0.0.1:9000
+2026-04-29 04:35:18,178 DEBUG http://127.0.0.1:9000 "POST /api/hardware HTTP/1.1" 200 75
+2026-04-29 04:35:18,179 INFO [TOOL get_hardware_state] status=200, body='{"memory": {"available": 446504960, "percent": 88.6, "status": "Critical"}}'
+2026-04-29 04:35:18,179 INFO 
+[MODEL CALL] loop=7
+2026-04-29 04:35:18,179 INFO [MESSAGES IN] [
+  {
+    "role": "system",
+    "content": "You are Hal, running in a tool-test harness.\n\nYou can use tools to fetch external HTTP resources and to query your robot hardware state.\n\nTOOLS AND CALL FORMAT\n---------------------\n\nWhen you need external information, call a tool using this exact format:\n\n<tool_call>\n{\"name\": \"<tool_name>\", \"arguments\": {...}}\n</tool_call>\n\nAfter the tool response arrives, continue your reasoning and answer normally.\n\nAvailable tools:\n\n1. fetch_url(url: string)\n   - Fetches a URL using HTTP GET and returns raw text.\n   - Use this for endpoints like:\n     - https://httpbin.org/uuid\n     - https://httpbin.org/ip\n     - https://httpbin.org/headers\n     - https://httpbin.org/get?foo=bar\n     - https://httpbin.org/anything\n\n2. get_hardware_state(components: list[string])\n   - Queries Hal's live hardware state via the gateway and HAL's API.\n   - You may ONLY request component names from this fixed list:\n       [\"battery\", \"cpu...
+
+2026-04-29 04:35:20,669 INFO [MODEL RAW OUTPUT]
+{"name": "get_hardware_state", "arguments": {"components": ["battery"]}}
+...
+
+2026-04-29 04:35:20,669 INFO [TOOL LOOP] Detected tool_call: name=get_hardware_state, args={'components': ['battery']}
+2026-04-29 04:35:20,669 INFO [TOOL get_hardware_state] components=['battery']
+2026-04-29 04:35:20,670 DEBUG Starting new HTTP connection (1): 127.0.0.1:9000
+2026-04-29 04:35:20,715 DEBUG http://127.0.0.1:9000 "POST /api/hardware HTTP/1.1" 200 61
+2026-04-29 04:35:20,715 INFO [TOOL get_hardware_state] status=200, body='{"battery": {"voltage": 8.314065934065933, "status": "Full"}}'
+2026-04-29 04:35:20,716 INFO [TOOL LOOP] Reached max_tool_loops. Stopping.
+
+2026-04-29 04:35:20,716 INFO [WS SEND]
+
+{"name": "get_hardware_state", "arguments": {"components": ["battery"]}}
+
+
+
+2026-04-29 04:35:20,716 DEBUG > TEXT '{"response": "{\\"name\\": \\"get_hardware_stat... [\\"battery\\"]}}\\n"}' [100 bytes]
+2026-04-29 04:35:20,717 DEBUG < CLOSE 1000 (OK) [2 bytes]
+2026-04-29 04:35:20,717 DEBUG > CLOSE 1000 (OK) [2 bytes]
+2026-04-29 04:35:20,717 DEBUG = connection is CLOSING
+2026-04-29 04:35:20,717 DEBUG > EOF
+2026-04-29 04:35:20,717 DEBUG x half-closing TCP connection
+2026-04-29 04:35:20,717 DEBUG < EOF
+2026-04-29 04:35:20,717 DEBUG = connection is CLOSED

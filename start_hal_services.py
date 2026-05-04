@@ -31,7 +31,7 @@ os.makedirs(LOG_DIR, exist_ok=True)
 # -------------------------
 def wait_for_port(host, port, timeout=60):
     start = time.time()
-    print(f"[Launcher] wait_for_port: host={host} port={port} timeout={timeout}")
+    # print(f"[Launcher] wait_for_port: host={host} port={port} timeout={timeout}")
     while True:
         try:
             with socket.create_connection((host, port), timeout=5):
@@ -114,7 +114,7 @@ def check_sql():
         print(f"[Launcher] SQL connection FAILED: {e}")
         raise
 
-    
+
 def check_for_old_errors():
     for fname in os.listdir(LOG_DIR):
         if fname.startswith("errors_") and os.path.getsize(os.path.join(LOG_DIR, fname)) > 0:

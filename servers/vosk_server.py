@@ -3,7 +3,7 @@ import os
 import asyncio
 import websockets
 import concurrent.futures
-import logging
+# import logging
 from vosk import Model, SpkModel, KaldiRecognizer
 from dotenv import load_dotenv
 
@@ -73,7 +73,7 @@ async def recognize(websocket):
 
     model_changed = False
 
-    logging.info('Connection from %s', websocket.remote_address)
+    # logging.info('Connection from %s', websocket.remote_address)
 
     while True:
         message = await websocket.recv()
@@ -81,7 +81,7 @@ async def recognize(websocket):
         # Handle config messages
         if isinstance(message, str) and 'config' in message:
             jobj = json.loads(message)['config']
-            logging.info("Config %s", jobj)
+            # logging.info("Config %s", jobj)
 
             if 'phrase_list' in jobj:
                 phrase_list = jobj['phrase_list']
@@ -119,13 +119,13 @@ async def recognize(websocket):
         # Process audio chunk in thread pool
         response, stop = await loop.run_in_executor(pool, process_chunk, rec, message)
 
-        logging.info(f"[VoskServer] Received {len(message)} bytes")
-        logging.info(f"[VoskServer] Sending: {response[:200]}")
+        # logging.info(f"[VoskServer] Received {len(message)} bytes")
+        # logging.info(f"[VoskServer] Sending: {response[:200]}")
 
         try:
             await websocket.send(response)
         except websockets.exceptions.ConnectionClosedOK:
-            logging.info("[VoskServer] Client closed normally, stop processing.")
+            # logging.info("[VoskServer] Client closed normally, stop processing.")
             # Client closed normally — stop processing
             break
 
@@ -138,14 +138,14 @@ async def recognize(websocket):
 async def start():
     global model, spk_model, pool
 
-    logging.basicConfig(level=logging.INFO)
+    # logging.basicConfig(level=logging.INFO)
 
     model = Model(MODEL_PATH)
     spk_model = SpkModel(SPK_MODEL_PATH) if SPK_MODEL_PATH else None
 
     pool = concurrent.futures.ThreadPoolExecutor(os.cpu_count() or 1)
 
-    logging.info("Vosk loading model from:", MODEL_PATH)
+    # logging.info("Vosk loading model from:", MODEL_PATH)
 
     server = await websockets.serve(recognize, INTERFACE, PORT)
     await server.wait_closed()

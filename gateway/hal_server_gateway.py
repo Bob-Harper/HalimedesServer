@@ -12,27 +12,27 @@ from aiohttp import web
 from typing import cast
 # Logging added below
 import uuid
-import logging
+# import logging
 
-# Resolve the server root directory (one level above gateway/)
-ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
+# # Resolve the server root directory (one level above gateway/)
+# ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
 
-# Correct logging directory at the server root
-LOG_DIR = os.path.join(ROOT_DIR, "logging")
-os.makedirs(LOG_DIR, exist_ok=True)
+# # Correct logging directory at the server root
+# LOG_DIR = os.path.join(ROOT_DIR, "logging")
+# os.makedirs(LOG_DIR, exist_ok=True)
 
-log_path = os.path.join(LOG_DIR, "gateway.log")
+# log_path = os.path.join(LOG_DIR, "gateway.log")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    handlers=[
-        logging.FileHandler(log_path, mode="a", encoding="utf-8"),
-        logging.StreamHandler()
-    ]
-)
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+#     handlers=[
+#         logging.FileHandler(log_path, mode="a", encoding="utf-8"),
+#         logging.StreamHandler()
+#     ]
+# )
 
-logger = logging.getLogger("gateway")
+# logger = logging.getLogger("gateway")
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -114,18 +114,18 @@ class HalServerGateway:
             messages = [{"role": "user", "content": final_user_prompt}]
 
             llm_reply = await self.llm_infer.infer(model="medium", messages=messages)
-            logger.info(f"\n[handle_inference]\n{llm_reply}\n")
+            # logger.info(f"\n[handle_inference]\n{llm_reply}\n")
             content = llm_reply.get("response", "") or ""
 
             # Strip markdown fences
             content = content.replace("```json", "").replace("```", "").strip()
 
-            # Strip <think> blocks
+            # Strip <tool_call> blocks
             content = strip_think_blocks(content)
 
             try:
                 parsed = json.loads(content)
-                logger.info(f"\n[handle_inference]\n{llm_reply}\n")
+                # logger.info(f"\n[handle_inference]\n{llm_reply}\n")
 
             except Exception:
                 parsed = {}
@@ -134,7 +134,7 @@ class HalServerGateway:
             return web.json_response(parsed)
 
         except Exception as e:
-            logger.exception("handle_inference failed")
+            # logger.exception("handle_inference failed")
 
             # Always return a valid cognition packet so HAL never breaks
             fallback = {
@@ -223,7 +223,7 @@ class HalServerGateway:
         await runner.setup()
 
         site = web.TCPSite(runner, GATEWAY_BIND_HOST, GATEWAY_BIND_PORT)
-        print(f"[Gateway] HTTP server on {GATEWAY_BIND_HOST}:{GATEWAY_BIND_PORT}")
+        # print(f"[Gateway] HTTP server on {GATEWAY_BIND_HOST}:{GATEWAY_BIND_PORT}")
         await site.start()
 
 

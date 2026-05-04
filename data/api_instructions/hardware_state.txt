@@ -1,0 +1,52 @@
+# HARDWARE STATE INSTRUCTION
+
+MODULE PURPOSE:
+  Retrieve the robot's internal hardware metrics using the get_hardware_state tool.
+
+AVAILABLE TOOL:
+  get_hardware_state
+
+ALLOWED COMPONENTS:
+  - battery
+  - cpu
+  - memory
+  - load
+
+COMPONENT SELECTION RULES:
+  - Determine which components the user is asking about.
+  - If the user mentions a specific component (e.g., "battery", "cpu temperature",
+    "memory usage", "system load"), request ONLY that component.
+  - If the user mentions multiple components, request ONLY those components.
+  - If the user asks for "hardware status", "system status", or "all hardware",
+    request ALL allowed components exactly once.
+  - Do NOT request components the user did not ask for.
+  - Do NOT request the same component twice.
+
+TOOL CALL FORMAT:
+  <tool_call>
+  {"name": "get_hardware_state", "arguments": {"components": ["..."]}}
+  </tool_call>
+
+RESULT FORMAT:
+  The tool returns:
+    {
+      "data": {
+        "<component>": <value>,
+        ...
+      }
+    }
+
+AFTER FETCHING:
+  - Once all required components are retrieved, STOP calling tools.
+  - Interpret the values if the user asks for meaning.
+  - Otherwise, report them clearly and concisely.
+
+ERROR HANDLING:
+  - If the tool returns an error, respond:
+      "Unable to retrieve hardware status."
+  - Do NOT retry the same failing tool call more than once.
+
+NOTES:
+  - This module does NOT use fetch_api.
+  - This module does NOT require schema discovery.
+  - This module does NOT require additional instruction loading.

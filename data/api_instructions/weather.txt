@@ -1,0 +1,37 @@
+# WEATHER API INSTRUCTIONS (OpenWeatherMap)
+
+BASE URL:
+  https://api.openweathermap.org/data/2.5/weather
+
+REQUIRED PARAMETERS:
+  - lat: latitude of the location
+  - lon: longitude of the location
+  - appid: API key
+
+OPTIONAL PARAMETERS:
+  - units: "metric" or "imperial" (default: metric)
+  - lang: language code (optional)
+
+HOW TO USE:
+  1. Ensure you have lat and lon for the target location.
+  2. If the user gives a city name, convert it to lat/lon using known coordinates.
+  3. If the user gives no location, ask for one.
+
+EXAMPLE REQUEST:
+  https://api.openweathermap.org/data/2.5/weather?lat=43.1&lon=-79.0&units=metric&appid=KEY
+
+RESPONSE FIELDS TO EXTRACT:
+  - temperature: json["main"]["temp"]
+  - feels_like: json["main"]["feels_like"]
+  - humidity: json["main"]["humidity"]
+  - conditions: json["weather"][0]["description"]
+  - wind_speed: json["wind"]["speed"]
+
+ERROR HANDLING:
+  - If API returns 400 or missing parameters → ask the user for a location.
+  - If API returns 401 → API key missing or invalid.
+  - If API returns 404 → invalid coordinates or unknown location.
+
+WHEN TO ASK THE USER:
+  - If no location is provided.
+  - If the location cannot be resolved.

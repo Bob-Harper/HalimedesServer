@@ -1,0 +1,31 @@
+# WIKIPEDIA API INSTRUCTIONS (REST SUMMARY)
+
+BASE URL PATTERN:
+  https://en.wikipedia.org/api/rest_v1/page/summary/{topic}
+
+REQUIRED PATH:
+  - topic: the title of the page to summarize
+    (Spaces must be replaced with underscores)
+
+HOW TO USE:
+  1. Convert the user’s query into a Wikipedia topic.
+  2. Replace spaces with underscores.
+  3. Insert into the URL pattern.
+  4. Call fetch_api with the full URL.
+
+EXAMPLE:
+  https://en.wikipedia.org/api/rest_v1/page/summary/Edinburgh
+
+FIELDS TO EXTRACT:
+  - title: json["title"]
+  - extract: json["extract"]
+  - description: json.get("description", "")
+  - url: json["content_urls"]["desktop"]["page"]
+
+ERROR HANDLING:
+  - If API returns 404 → page not found → ask the user to clarify.
+  - If topic is ambiguous → ask the user to specify.
+
+WHEN TO ASK THE USER:
+  - If the topic is unclear or too broad.
+  - If the user gives multiple possible meanings.

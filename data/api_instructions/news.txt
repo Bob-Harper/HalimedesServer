@@ -1,0 +1,24 @@
+# NEWS INSTRUCTION
+
+NEWS SOURCE:
+  Use feeds from the following list.
+    - CBC Top Stories: https://www.cbc.ca/webfeed/rss/rss-topstories
+
+FORMAT:
+  you will recieve JSON formatted data.
+
+HOW TO USE:
+- Fetch the URL using fetch_api.
+- You will receive JSON containing a list of news items.
+- Each item contains:
+    - title
+    - summary
+    - published
+
+WHAT TO RETURN TO THE USER:
+If explicit instructions are provided regarding the expected response, follow those instructions.
+If instructions are NOT provided, provide each retrieved item as title followed by its summary.
+
+ERROR HANDLING:
+  - If the result is empty or unreadable, advise the user "Unable to provide news."
+  - if you are unable to connect at all, advise the user "Unable to connect to news source"
