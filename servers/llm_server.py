@@ -55,6 +55,7 @@ USER_AGENT = (
 
 last_request_time = {}
 
+
 # ------------------------------------------------------------
 # Load a model by name (hot-swappable)
 # ------------------------------------------------------------
@@ -116,7 +117,6 @@ def extract_tool_call(content: str):
         logger.info(f"[TOOL PARSE ERROR] {e}")
 
     return None, None
-
 
 
 def get_hardware_state(components):
@@ -201,7 +201,6 @@ def fetch_api(
             "json": None,
             "text": ""
         }
-
 
 
 def get_world_state(keys):
@@ -407,6 +406,7 @@ def run_with_tools(messages, max_tool_loops=5):
 
     return content
 
+
 def should_finalize_based_on_last_tool(messages):
     last = get_last_tool_call(messages)
     if not last:
@@ -481,6 +481,7 @@ def inject_finalization_message(messages):
 
     # Future modules can be added here
 
+
 def call_llm_for_tool_reasoning(messages):
     logger.info("\n[LLM INPUT MESSAGES]\n%s\n", json.dumps(messages, indent=2))
     resp = cast(Dict[str, Any], CURRENT_LLM.create_chat_completion(
@@ -496,6 +497,7 @@ def call_llm_for_tool_reasoning(messages):
     logger.info(f"[PARSED TOOL CALL] name={tool_name}, args={tool_args}")
 
     return content, tool_name, tool_args
+
 
 def get_last_tool_call(messages):
     for m in reversed(messages):
@@ -640,6 +642,7 @@ def should_block_tool(tool_name, last_tool_call, tool_args, messages):
 
     return False
 
+
 def execute_tool(tool_name, tool_args, messages):
     tool_fn = TOOLS.get(tool_name)
     if tool_fn is None:
@@ -687,6 +690,7 @@ def strip_html(text):
     text = re.sub(r"<[^>]+>", "", text)
     return " ".join(text.split()).strip()
 
+
 def extract_clean_rss_items_json(xml_text, limit=5):
     """
     Parse RSS XML and return a JSON string containing:
@@ -713,6 +717,8 @@ def extract_clean_rss_items_json(xml_text, limit=5):
         })
 
     return json.dumps(items, ensure_ascii=False, indent=2)
+
+
 # -----------------------------
 # WEBSOCKET SERVER
 # -----------------------------
@@ -727,7 +733,6 @@ async def handle_inference(ws):
             logger.info(f"[WS JSON ERROR] {e}")
             await ws.send(json.dumps({"error": "invalid JSON"}))
             continue
-
 
         messages = data.get("messages", [])
 

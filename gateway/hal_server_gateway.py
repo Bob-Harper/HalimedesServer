@@ -102,6 +102,51 @@ class HalServerGateway:
         self.vosk = VoskModule(uri=vosk_uri)
         self.llm_infer = LLMModule("ws://localhost:8765")
 
+    #  Transcription-Only endpoint
+    async def handle_transcribe(self, request: web.Request):
+        req_id = str(uuid.uuid4())
+
+        # Read JSON
+        try:
+            data = await request.json()
+        except Exception as e:
+            return web.json_response({"error": "json_parse_error", "detail": repr(e)}, status=400)
+
+        # Extract base64
+        audio_b64 = data.get("audio_b64")
+        if not audio_b64:
+            return web.json_response({"error": "missing_audio_b64"}, status=400)
+
+        # Decode base64
+        try:
+            audio_bytes = base64.b64decode(audio_b64)
+        except Exception as e:
+            return web.json_response({"error": "b64_decode_error", "detail": repr(e)}, status=400)
+        # Call Vosk
+        try:
+            transcript = await self.vosk.transcribe_audio(audio_bytes, req_id=req_id)
+
+        except Exception as e:
+            return web.json_response({"error": "vosk_exception", "detail": repr(e)}, status=500)
+
+        # Build response
+        text = transcript.get("text", "")
+
+        words = cast(list[dict], transcript.get("result", []))
+        if words:
+            confidence = sum(w.get("conf", 0) for w in words) / len(words)
+            duration = words[-1].get("end", None)
+        else:
+            confidence = None
+            duration = None
+
+        result = {
+            "text": text,
+            "confidence": confidence,
+            "duration": duration,
+        }
+
+        return web.json_response(result)
 
     #  Inference/Instruction based endpoint
     async def handle_inference(self, request: web.Request):
@@ -148,76 +193,74 @@ class HalServerGateway:
 
             return web.json_response(fallback)
 
+    async def handle_semantic_write(self, request):
+        data = await request.json()
+        key = data.get("key")
+        value = data.get("value")
 
-    #  Transcription-Only endpoint
-    async def handle_transcribe(self, request: web.Request):
-        req_id = str(uuid.uuid4())
+        if not key or value is None:
+            return web.json_response({"error": "key and value required"}, status=400)
 
-        # -----------------------------
-        # 1. Read JSON
-        # -----------------------------
-        try:
-            data = await request.json()
-        except Exception as e:
-            return web.json_response({"error": "json_parse_error", "detail": repr(e)}, status=400)
+        result = await self.sql.semantic_write(key, value)
+        return web.json_response(result)
 
-        # -----------------------------
-        # 2. Extract base64
-        # -----------------------------
-        audio_b64 = data.get("audio_b64")
-        if not audio_b64:
-            return web.json_response({"error": "missing_audio_b64"}, status=400)
+    async def handle_semantic_read(self, request):
+        data = await request.json()
+        key = data.get("key")
 
+        if not key:
+            return web.json_response({"error": "key required"}, status=400)
 
-        # -----------------------------
-        # 3. Decode base64
-        # -----------------------------
-        try:
-            audio_bytes = base64.b64decode(audio_b64)
-        except Exception as e:
-            return web.json_response({"error": "b64_decode_error", "detail": repr(e)}, status=400)
+        result = await self.sql.semantic_read(key)
+        return web.json_response(result)
 
-        # -----------------------------
-        # 4. Call Vosk
-        # -----------------------------
-        try:
-            transcript = await self.vosk.transcribe_audio(audio_bytes, req_id=req_id)
+    async def handle_vector_write(self, request):
+        data = await request.json()
 
-        except Exception as e:
-            return web.json_response({"error": "vosk_exception", "detail": repr(e)}, status=500)
+        content = data.get("content")
+        vector = data.get("vector")
+        timestamp = data.get("timestamp")
 
-        # -----------------------------
-        # 5. Build response
-        # -----------------------------
-        text = transcript.get("text", "")
+        if not content or vector is None or timestamp is None:
+            return web.json_response({"error": "content, vector, timestamp required"}, status=400)
 
-        words = cast(list[dict], transcript.get("result", []))
-        if words:
-            confidence = sum(w.get("conf", 0) for w in words) / len(words)
-            duration = words[-1].get("end", None)
-        else:
-            confidence = None
-            duration = None
+        result = await self.sql.vector_write(content, vector, timestamp)
+        return web.json_response(result)
 
-        result = {
-            "text": text,
-            "confidence": confidence,
-            "duration": duration,
-        }
+    async def handle_vector_search(self, request):
+        data = await request.json()
 
+        query_vector = data.get("vector")
+        top_k = data.get("top_k", 5)
+
+        if query_vector is None:
+            return web.json_response({"error": "vector required"}, status=400)
+
+        result = await self.sql.vector_search(query_vector, top_k)
         return web.json_response(result)
 
     # -------------------------
     # Server  Endpoints
     # -------------------------
 
-
     async def start_http_server(self):
         app = web.Application(client_max_size=10 * 1024 * 1024)
-
-        app.router.add_post("/api/inference", self.handle_inference)
+        # Vosk transcribe endpoint (forwarding to Vosk server and returning text + confidence)
         app.router.add_post("/api/transcribe", self.handle_transcribe)
+
+        # Hardware proxy endpoint (forwards to Halimedes)
         app.router.add_post("/api/hardware", hardware_proxy)
+
+        # LLM inference endpoint (HAL sends fully assembled prompt, LLM returns structured JSON)
+        app.router.add_post("/api/inference", self.handle_inference)
+
+        # Semantic memory endpoints (Hard data. searchable by explicit tags and content, but not vector similarity)
+        app.router.add_post("/api/memory/semantic/write", self.handle_semantic_write)
+        app.router.add_post("/api/memory/semantic/read", self.handle_semantic_read)
+
+        # Episodic memory endpoints (Objective memory, conversations, user details. Searchable by vector similarity and optionally tags/content)
+        app.router.add_post("/api/memory/episodic/write", self.handle_vector_write)
+        app.router.add_post("/api/memory/episodic/search", self.handle_vector_search)
 
         runner = web.AppRunner(app)
         await runner.setup()
