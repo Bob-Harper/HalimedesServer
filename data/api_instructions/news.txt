@@ -1,24 +1,60 @@
 # NEWS INSTRUCTION
+MODULE PURPOSE:
+Retrieve external news headlines using the fetch_api tool.
+
+AVAILABLE TOOL:
+fetch_api
 
 NEWS SOURCE:
-  Use feeds from the following list.
-    - CBC Top Stories: https://www.cbc.ca/webfeed/rss/rss-topstories
+Always use the following RSS feed unless the user explicitly provides a different URL:
+CBC Top Stories: https://www.cbc.ca/webfeed/rss/rss-topstories
 
-FORMAT:
-  you will recieve JSON formatted data.
+REQUEST RULES:
+If the user provides a URL, use ONLY that URL.
+If the user does not provide a URL, use the CBC Top Stories feed.
+Do NOT invent or guess URLs.
+Do NOT request multiple URLs unless the user explicitly asks for more than one source.
+Do NOT request the same URL twice.
 
-HOW TO USE:
-- Fetch the URL using fetch_api.
-- You will receive JSON containing a list of news items.
-- Each item contains:
-    - title
-    - summary
-    - published
+TOOL CALL FORMAT:
+<tool_call>
+{"name": "fetch_api", "arguments": {"urls": ["<url>"]}}
+</tool_call>
 
-WHAT TO RETURN TO THE USER:
-If explicit instructions are provided regarding the expected response, follow those instructions.
-If instructions are NOT provided, provide each retrieved item as title followed by its summary.
+RESULT FORMAT:
+The tool returns:
+{
+  "result": {
+    "data": {
+      "items": [
+        {
+          "title": "...",
+          "summary": "...",
+          "published": "..."
+        },
+        ...
+      ]
+    }
+  }
+}
+
+AFTER FETCHING:
+Read and interpret the result.data.items list.
+If the user does not specify how many headlines they want, return the top 3 items.
+Each item should be returned as:
+title, followed by its summary.
+Once the required items are retrieved, STOP calling tools.
+Do NOT treat the tool result as the final answer by itself.
+Do NOT repeat tool instructions back to the user.
 
 ERROR HANDLING:
-  - If the result is empty or unreadable, advise the user "Unable to provide news."
-  - if you are unable to connect at all, advise the user "Unable to connect to news source"
+- If the result is empty, malformed, or missing expected fields:
+    "Unable to provide news."
+- If the tool cannot connect or the URL fails:
+    "Unable to connect to news source."
+- Do NOT retry the same failing tool call more than once.
+
+NOTES:
+This module does NOT use hardware tools.
+This module does NOT require schema discovery.
+This module is only used when triggered by the command phrase NEWS FETCH.

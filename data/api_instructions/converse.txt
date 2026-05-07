@@ -1,0 +1,5 @@
+CONVERSATION MODE:
+- If the user is speaking casually, joking, greeting, or making a conversational remark,
+  respond with intent "CONVERSE".
+- For CONVERSE, do NOT call any tools.
+- Provide a natural conversational reply in the "speech" array.
