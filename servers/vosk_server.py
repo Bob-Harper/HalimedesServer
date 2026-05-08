@@ -1,5 +1,8 @@
+import os, sys
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+
 import json
-import os
 import asyncio
 import websockets
 import concurrent.futures

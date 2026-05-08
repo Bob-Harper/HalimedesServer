@@ -57,8 +57,8 @@ def start_process(name, script_path, log_name):
 
     process = subprocess.Popen(
         [sys.executable, script_path],
-        stdout=log_file,
-        stderr=log_file,
+        stdout=subprocess.DEVNULL,  # stdXXX=subprocess.DEVNULL to supress logging.  stdXXX=log_file to enable logging.
+        stderr=subprocess.DEVNULL,
         stdin=subprocess.DEVNULL,
         cwd=ROOT,
         env=env,

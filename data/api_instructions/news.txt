@@ -15,11 +15,13 @@ If the user does not provide a URL, use the CBC Top Stories feed.
 Do NOT invent or guess URLs.
 Do NOT request multiple URLs unless the user explicitly asks for more than one source.
 Do NOT request the same URL twice.
+The "url" argument must be a single string.
+Do NOT wrap the URL in a list.
 
 TOOL CALL FORMAT:
-<tool_call>
-{"name": "fetch_api", "arguments": {"urls": ["<url>"]}}
-</tool_call>
+  <tool_call>
+  {"name": "fetch_api", "arguments": {"url": "<url>"}}
+  </tool_call>
 
 RESULT FORMAT:
 The tool returns:
@@ -39,20 +41,15 @@ The tool returns:
 }
 
 AFTER FETCHING:
-Read and interpret the result.data.items list.
-If the user does not specify how many headlines they want, return the top 3 items.
-Each item should be returned as:
-title, followed by its summary.
-Once the required items are retrieved, STOP calling tools.
-Do NOT treat the tool result as the final answer by itself.
-Do NOT repeat tool instructions back to the user.
+  - If the user does not specify how many headlines they want, return the top 3 items.
+  - Read and interpret the result.data.items list.
+  - Each item should be returned as title, followed by its summary.
+  - Once all required components are retrieved, STOP calling tools.
+  - Otherwise, report them clearly and concisely.
 
 ERROR HANDLING:
-- If the result is empty, malformed, or missing expected fields:
-    "Unable to provide news."
-- If the tool cannot connect or the URL fails:
-    "Unable to connect to news source."
-- Do NOT retry the same failing tool call more than once.
+  - If the tool returns an error, you MUST inform the user you are unable to retrieve news
+  - Do NOT retry the same failing tool call more than once.
 
 NOTES:
 This module does NOT use hardware tools.
