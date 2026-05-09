@@ -48,8 +48,14 @@ MODELS = {
 DEFAULT_MODEL = "medium"
 CURRENT_MODEL_NAME = DEFAULT_MODEL
 
-with open("data/system_prompt_inference.txt", "r", encoding="utf-8") as f:
-    SYSTEM_PROMPT = f.read()
+with open("data/system_prompt_autonomous.txt", "r", encoding="utf-8") as f:
+    SYSTEM_PROMPT_AUTONOMOUS = f.read()
+
+with open("data/system_prompt_chat.txt", "r", encoding="utf-8") as f:
+    SYSTEM_PROMPT_CHAT = f.read()
+
+with open("data/system_prompt_tool.txt", "r", encoding="utf-8") as f:
+    SYSTEM_PROMPT_TOOL = f.read()
 
 USER_AGENT = (
     "Halimedes/1.0 "
@@ -110,6 +116,17 @@ async def handle_inference(ws):
             continue
 
         messages = data.get("messages", [])
+        inference_type = data.get("inference_type", "chat")
+
+        # Select the appropriate system prompt based on inference type
+        if inference_type == "autonomous":
+            SYSTEM_PROMPT = SYSTEM_PROMPT_AUTONOMOUS
+        elif inference_type == "chat":
+            SYSTEM_PROMPT = SYSTEM_PROMPT_CHAT
+        elif inference_type == "tool":
+            SYSTEM_PROMPT = SYSTEM_PROMPT_TOOL
+        else:
+            SYSTEM_PROMPT = SYSTEM_PROMPT_CHAT  # Default
 
         # NOW prepend system prompt
         messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
@@ -132,6 +149,8 @@ async def main():
 
     # Start inference server
     await websockets.serve(handle_inference, LLM_BIND_HOST, LLM_BIND_PORT)
+    print("----- LLM Inference Server Open -----")
+
     # Keep running forever
     await asyncio.Future()
 

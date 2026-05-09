@@ -6,11 +6,12 @@ class LLMModule:
     def __init__(self, url: str):
         self.url = url
 
-    async def infer(self, model: str, messages: list):
+    async def infer(self, model: str, messages: list, inference_type: str = "chat") -> dict:
         payload = {
             "model": model,
             "messages": messages,
-            "temperature": 0.0
+            "temperature": 0.8,
+            "inference_type": inference_type
         }
 
         async with websockets.connect(

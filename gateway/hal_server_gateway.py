@@ -51,7 +51,6 @@ DB_CONFIG = {
 LLM_CONNECT_HOST = os.getenv("LLM_CONNECT_HOST", "127.0.0.1")
 LLM_CONNECT_PORT = int(os.getenv("LLM_CONNECT_PORT", 8765))
 LLM_SERVER_URL = f"ws://{LLM_CONNECT_HOST}:{LLM_CONNECT_PORT}"
-SYSTEM_PROMPT_INFERENCE = os.getenv("SYSTEM_PROMPT_INFERENCE")
 GATEWAY_BIND_HOST = os.getenv("GATEWAY_BIND_HOST", "0.0.0.0")
 GATEWAY_BIND_PORT = int(os.getenv("GATEWAY_BIND_PORT", 9000))
 HALIMEDES_IP = os.getenv("HALIMEDES_IP")
@@ -151,8 +150,18 @@ class HalServerGateway:
 
         return web.json_response(result)
 
+
+    async def handle_autonomous_inference(self, request: web.Request):
+        return await self._handle_inference(request, inference_type="autonomous")
+
+    async def handle_chat_inference(self, request: web.Request):
+        return await self._handle_inference(request, inference_type="chat")
+
+    async def handle_tool_inference(self, request: web.Request):
+        return await self._handle_inference(request, inference_type="tool")
+
     #  Inference/Instruction based endpoint
-    async def handle_inference(self, request: web.Request):
+    async def _handle_inference(self, request: web.Request, inference_type: str):
         try:
             payload = await request.json()
 
@@ -161,7 +170,7 @@ class HalServerGateway:
 
             messages = [{"role": "user", "content": final_user_prompt}]
 
-            llm_reply = await self.llm_infer.infer(model="medium", messages=messages)
+            llm_reply = await self.llm_infer.infer(model="medium", messages=messages, inference_type=inference_type)
             # logger.info(f"\n[handle_inference]\n{llm_reply}\n")
             content = llm_reply.get("response", "") or ""
 
@@ -255,7 +264,9 @@ class HalServerGateway:
         app.router.add_post("/api/hardware", hardware_proxy)
 
         # LLM inference endpoint (HAL sends fully assembled prompt, LLM returns structured JSON)
-        app.router.add_post("/api/inference", self.handle_inference)
+        app.router.add_post("/api/autonomous", self.handle_autonomous_inference)
+        app.router.add_post("/api/chat", self.handle_chat_inference)
+        app.router.add_post("/api/tool", self.handle_tool_inference)
 
         # Semantic memory endpoints (Hard data. searchable by explicit tags and content, but not vector similarity)
         app.router.add_post("/api/memory/semantic/write", self.handle_semantic_write)
@@ -276,6 +287,7 @@ class HalServerGateway:
 async def main():
     gateway = HalServerGateway()
     await gateway.start_http_server()
+    print("----- HalServerGateway Open -----")
     await asyncio.Event().wait()
 
 

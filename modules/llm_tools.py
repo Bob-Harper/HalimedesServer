@@ -572,7 +572,7 @@ class ToolClass:
         logger.info("\n[LLM INPUT MESSAGES]\n%s\n", json.dumps(messages, indent=2))
         resp = cast(Dict[str, Any], model.create_chat_completion(
             messages=messages,
-            temperature=0.0,
+            temperature=0.5,
             response_format={"type": "json_object"},
         ))
         logger.info("\n[LLM RAW OUTPUT]\n%s\n", resp)

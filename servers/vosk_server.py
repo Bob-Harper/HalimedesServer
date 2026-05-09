@@ -151,6 +151,8 @@ async def start():
     # logging.info("Vosk loading model from:", MODEL_PATH)
 
     server = await websockets.serve(recognize, INTERFACE, PORT)
+    print("----- Vosk Transcription Server Open -----")
+
     await server.wait_closed()
 
 # ------------------------------------------------------------
