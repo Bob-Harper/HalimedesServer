@@ -35,4 +35,4 @@ servers/vosk-server/
 Thumbs.db
 gateway/logging/gateway.log
 logging/model_output.txt
-hal_server_code_dump.txt
+**/hal_code_dump.txt
